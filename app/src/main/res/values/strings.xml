@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AutoGLM</string>
+    <string name="accessibility_service_description">AutoGLM无障碍服务允许通过AI辅助残障人士控制手机操作，包括截屏、点击、滑动和输入等功能。</string>
+</resources>
