@@ -1,9 +1,11 @@
 name: Build-Release
 
 on:
-  push:
-    tags:
-      - v*
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Release Tag (v1.x.x)'
+        required: true
 
 jobs:
   build:
@@ -26,76 +28,21 @@ jobs:
           echo key.alias='${{ secrets.KEY_ALIAS }}' >> signing.properties
           echo key.password='${{ secrets.KEY_PASSWORD }}' >> signing.properties
       - run: chmod +x gradlew
-      - run: ./gradlew app:assembleRelease
 
-      - uses: actions/upload-artifact@v4
+      - name: Release Build
+        run: ./gradlew app:assembleRelease
+
+      - name: Tag Repo
+        uses: richardsimko/update-tag@v1
         with:
-          name: release
-          path: app/build/outputs/apk/release
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: outputs
-          path: app/build/outputs
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: CHANGELOG.md
-          path: CHANGELOG.md
-
-  release:
-    needs: build
-    permissions: write-all
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: outputs
-          path: outputs
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: release
-          path: release
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: CHANGELOG.md
-
-      - run: ls -R
-
-      - id: create_release
-        uses: actions/create-release@v1
+          tag_name: ${{ inputs.release-tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          body_path: ./CHANGELOG.md
-          prerelease: ${{ contains(github.ref_name, 'beta') }}
 
-      - name: Find and upload APK
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          APK_PATH=$(find release -name "AutoGLM-*-release.apk" -type f | head -1)
-          if [ -z "$APK_PATH" ]; then
-            echo "Error: APK file not found"
-            exit 1
-          fi
-          echo "Found APK: $APK_PATH"
-          curl -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Content-Type: application/vnd.android.package-archive" \
-            --data-binary @"$APK_PATH" \
-            "${{ steps.create_release.outputs.upload_url }}?name=AutoGLM-${{ github.ref_name }}.apk"
-
-      - run: zip -r outputs.zip outputs
-      - uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
+        if: ${{ success() }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: outputs.zip
-          asset_name: outputs-${{ github.ref_name }}.zip
-          asset_content_type: application/zip
+          tag_name: ${{ inputs.release-tag }}
+          files: app/build/outputs/apk/release/*
+          generate_release_notes: true
