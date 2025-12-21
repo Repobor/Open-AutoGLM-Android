@@ -32,13 +32,6 @@ jobs:
       - name: Release Build
         run: ./gradlew app:assembleRelease
 
-      - name: Tag Repo
-        uses: richardsimko/update-tag@v1
-        with:
-          tag_name: ${{ inputs.release-tag }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Upload Release
         uses: softprops/action-gh-release@v1
         if: ${{ success() }}
