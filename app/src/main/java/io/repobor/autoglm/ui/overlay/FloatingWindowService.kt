@@ -16,6 +16,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import io.repobor.autoglm.R
+import io.repobor.autoglm.data.SettingsRepository
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -32,6 +33,9 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import io.repobor.autoglm.ui.theme.AutoGLMTheme
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.runBlocking
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +52,7 @@ class FloatingWindowService : Service(), LifecycleOwner, ViewModelStoreOwner, Sa
     private lateinit var windowManager: WindowManager
     private var floatingView: ComposeView? = null
     private var isExpanded by mutableStateOf(false)
+    private lateinit var settingsRepository: SettingsRepository
 
     // Lifecycle management
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -95,6 +100,8 @@ class FloatingWindowService : Service(), LifecycleOwner, ViewModelStoreOwner, Sa
                     notification,
                     android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
                 )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
             }
             Log.d(TAG, "Foreground service started successfully")
         } catch (e: Exception) {
@@ -103,6 +110,7 @@ class FloatingWindowService : Service(), LifecycleOwner, ViewModelStoreOwner, Sa
         }
 
         try {
+            settingsRepository = SettingsRepository(this)
             windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
             createFloatingView()
         } catch (e: Exception) {
@@ -138,6 +146,9 @@ class FloatingWindowService : Service(), LifecycleOwner, ViewModelStoreOwner, Sa
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createFloatingView() {
+        // Setup window parameters
+        val params = createWindowParams()
+
         // Create ComposeView
         floatingView = ComposeView(this).apply {
             // Set lifecycle, viewmodel, and savedstate owners
@@ -159,15 +170,28 @@ class FloatingWindowService : Service(), LifecycleOwner, ViewModelStoreOwner, Sa
             }
         }
 
-        // Setup window parameters
-        val params = createWindowParams()
-
         // Add view to window
         try {
             windowManager.addView(floatingView, params)
 
             // Setup drag listener for the entire view (only works when collapsed)
             setupDragListener(floatingView!!, params)
+
+            // Save initial position if not already saved (only on first launch)
+            launch {
+                try {
+                    val currentX = settingsRepository.floatingWindowX.first()
+                    val currentY = settingsRepository.floatingWindowY.first()
+
+                    // If default position (100, 100), save the actual position for next time
+                    if (currentX == 100 && currentY == 100) {
+                        settingsRepository.saveFloatingWindowPosition(params.x, params.y)
+                        Log.d(TAG, "Saved initial floating window position: x=${params.x}, y=${params.y}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to save initial position", e)
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to add floating view", e)
         }
@@ -189,6 +213,23 @@ class FloatingWindowService : Service(), LifecycleOwner, ViewModelStoreOwner, Sa
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
         }
 
+        // Load saved position from settings
+        val savedX = runBlocking {
+            try {
+                settingsRepository.floatingWindowX.first()
+            } catch (e: Exception) {
+                100
+            }
+        }
+
+        val savedY = runBlocking {
+            try {
+                settingsRepository.floatingWindowY.first()
+            } catch (e: Exception) {
+                100
+            }
+        }
+
         return WindowManager.LayoutParams(
             if (isExpanded) WindowManager.LayoutParams.MATCH_PARENT else WindowManager.LayoutParams.WRAP_CONTENT,
             if (isExpanded) WindowManager.LayoutParams.MATCH_PARENT else WindowManager.LayoutParams.WRAP_CONTENT,
@@ -197,8 +238,8 @@ class FloatingWindowService : Service(), LifecycleOwner, ViewModelStoreOwner, Sa
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = if (isExpanded) Gravity.CENTER else Gravity.TOP or Gravity.START
-            x = if (!isExpanded) 100 else 0
-            y = if (!isExpanded) 100 else 0
+            x = if (!isExpanded) savedX else 0
+            y = if (!isExpanded) savedY else 0
         }
     }
 
@@ -280,6 +321,15 @@ class FloatingWindowService : Service(), LifecycleOwner, ViewModelStoreOwner, Sa
                         }
                     } else {
                         Log.d(TAG, "Drag completed")
+                        // Save the new position to settings
+                        launch {
+                            try {
+                                settingsRepository.saveFloatingWindowPosition(params.x, params.y)
+                                Log.d(TAG, "Saved floating window position: x=${params.x}, y=${params.y}")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to save floating window position", e)
+                            }
+                        }
                     }
                     false
                 }

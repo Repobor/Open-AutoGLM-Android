@@ -42,6 +42,8 @@ class SettingsRepository(private val context: Context) {
         private val LANGUAGE = stringPreferencesKey("language")
         private val TEMPERATURE = floatPreferencesKey("temperature")
         private val EXECUTION_MODE = stringPreferencesKey("execution_mode")
+        private val FLOATING_WINDOW_X = intPreferencesKey("floating_window_x")
+        private val FLOATING_WINDOW_Y = intPreferencesKey("floating_window_y")
 
         // Default values
         const val DEFAULT_API_ENDPOINT = "https://open.bigmodel.cn/api/paas/v4"
@@ -160,6 +162,36 @@ class SettingsRepository(private val context: Context) {
         }
 
     /**
+     * Flow of floating window X position setting.
+     */
+    val floatingWindowX: Flow<Int> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[FLOATING_WINDOW_X] ?: 100
+        }
+
+    /**
+     * Flow of floating window Y position setting.
+     */
+    val floatingWindowY: Flow<Int> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[FLOATING_WINDOW_Y] ?: 100
+        }
+
+    /**
      * Save API endpoint setting.
      */
     suspend fun saveApiEndpoint(url: String) {
@@ -219,6 +251,34 @@ class SettingsRepository(private val context: Context) {
     suspend fun saveExecutionMode(mode: ExecutionMode) {
         context.dataStore.edit { preferences ->
             preferences[EXECUTION_MODE] = mode.value
+        }
+    }
+
+    /**
+     * Save floating window X position setting.
+     */
+    suspend fun saveFloatingWindowX(x: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[FLOATING_WINDOW_X] = x
+        }
+    }
+
+    /**
+     * Save floating window Y position setting.
+     */
+    suspend fun saveFloatingWindowY(y: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[FLOATING_WINDOW_Y] = y
+        }
+    }
+
+    /**
+     * Save floating window position.
+     */
+    suspend fun saveFloatingWindowPosition(x: Int, y: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[FLOATING_WINDOW_X] = x
+            preferences[FLOATING_WINDOW_Y] = y
         }
     }
 

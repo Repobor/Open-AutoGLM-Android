@@ -20,6 +20,7 @@ import io.repobor.autoglm.actions.ActionHandler
 import io.repobor.autoglm.actions.ActionParser
 import io.repobor.autoglm.actions.ExecutionEngineActionHandler
 import io.repobor.autoglm.model.ModelClient
+import kotlinx.coroutines.currentCoroutineContext
 
 /**
  * Main orchestrator for phone automation tasks.
@@ -128,7 +129,7 @@ class PhoneAgent(
             while (currentStep < agentConfig.maxSteps && !finished && isRunning) {
                 // Check if coroutine was cancelled - this will throw CancellationException if cancelled
                 // Allows immediate response to stop request even in middle of loop
-                coroutineContext.ensureActive()
+                currentCoroutineContext().ensureActive()
 
                 // Double-check running flag for user-initiated stops
                 // (ensureActive() handles Job.cancel() from ViewModel)
@@ -242,9 +243,6 @@ class PhoneAgent(
                 Log.e(TAG, "Failed to get current app name", e)
                 "Unknown"
             }
-
-            Log.i(TAG, "currentApp = $currentApp")
-
             // Build user message
             val userMessage = if (isFirst && userPrompt != null) {
                 MessageBuilder.buildTaskMessage(

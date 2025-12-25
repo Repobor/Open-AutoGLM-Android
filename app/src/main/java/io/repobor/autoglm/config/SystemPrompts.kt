@@ -85,7 +85,7 @@ object SystemPrompts {
     finish是结束任务的操作,表示准确完整完成任务,message是终止信息。
 
 必须遵循的规则:
-0. AutoGLM应用是你自身，你必须执行 Launch 跳转到目标 app。
+0. AutoGLM应用并不能执行任何任务，你必须执行 Launch 跳转到目标 app。
 1. 在执行任何操作前,先检查当前app是否是目标app,如果不是,先执行 Launch。
 2. 如果进入到了无关页面,先执行 Back。如果执行Back后页面没有变化,请点击页面左上角的返回键进行返回,或者右上角的X号关闭。
 3. 如果页面未加载出内容,最多连续 Wait 三次,否则执行 Back重新进入。

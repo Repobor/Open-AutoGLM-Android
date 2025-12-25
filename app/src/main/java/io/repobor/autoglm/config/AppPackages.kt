@@ -29,6 +29,8 @@ object AppPackages {
         "高德地图" to "com.autonavi.minimap",
         "百度地图" to "com.baidu.BaiduMap",
         // Food & Services
+        "麦当劳" to "com.mcdonalds.gma.cn",
+        "瑞幸咖啡" to "com.lucky.luckyclient" ,
         "美团" to "com.sankuai.meituan",
         "大众点评" to "com.dianping.v1",
         "饿了么" to "me.ele",
